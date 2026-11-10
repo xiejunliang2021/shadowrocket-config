@@ -1,0 +1,41 @@
+name: Sync Shadowrocket rules
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 官方项目约为北京时间 08:00 更新；此任务在 08:15（UTC 00:15）同步。
+    - cron: "15 0 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shadowrocket-rule-sync
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build profiles from official Rule section
+        run: python scripts/build.py
+
+      - name: Commit generated profiles
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/cellular.conf dist/wifi.conf
+          if git diff --cached --quiet; then
+            echo "No rule changes."
+            exit 0
+          fi
+          git commit -m "chore: sync official Shadowrocket rules"
+          git push
